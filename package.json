@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "@decartai/sdk": "^0.0.60",
-    "@supabase/supabase-js": "^2.105.0"
+    "@supabase/supabase-js": "^2.105.3",
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.3"
   }
 }
