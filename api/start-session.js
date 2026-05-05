@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import jwt from 'jsonwebtoken';
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
@@ -12,17 +11,10 @@ export default async function handler(req, res) {
     }
 
     try {
-        // =========================
-        // AUTH
-        // =========================
-        const token = req.headers.authorization?.split(' ')[1];
-
-        if (!token) {
-            return res.status(401).json({ error: 'No token' });
-        }
+        console.log("START SESSION HIT");
 
         // =========================
-        // AUTH (FIXED)
+        // AUTH (ONLY ONCE ✅)
         // =========================
         const token = req.headers.authorization?.split(' ')[1];
 
@@ -30,10 +22,12 @@ export default async function handler(req, res) {
             return res.status(401).json({ error: 'No token' });
         }
 
+        // 🔥 Use Supabase to validate token
         const { data: { user }, error: authError } =
             await supabase.auth.getUser(token);
 
         if (authError || !user) {
+            console.error("AUTH ERROR:", authError);
             return res.status(401).json({ error: 'Invalid token' });
         }
 
@@ -49,6 +43,7 @@ export default async function handler(req, res) {
             .single();
 
         if (error || !profile) {
+            console.error("PROFILE ERROR:", error);
             return res.status(404).json({ error: 'User not found' });
         }
 
@@ -73,6 +68,7 @@ export default async function handler(req, res) {
             .single();
 
         if (sessionError || !session) {
+            console.error("SESSION ERROR:", sessionError);
             return res.status(500).json({ error: 'Failed to create session' });
         }
 
@@ -81,14 +77,15 @@ export default async function handler(req, res) {
         // =========================
         return res.status(200).json({
             success: true,
-            session_id: session.id,          // 🔥 CRITICAL
+            session_id: session.id,
             decartKey: process.env.DECART_API_KEY,
             seconds: profile.remaining_seconds
         });
 
     } catch (err) {
-        return res.status(401).json({
-            error: 'Invalid token'
+        console.error("CRASH:", err);
+        return res.status(500).json({
+            error: err.message
         });
     }
 }
