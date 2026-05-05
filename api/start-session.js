@@ -12,16 +12,36 @@ export default async function handler(req, res) {
     }
 
     try {
+        // =========================
+        // AUTH
+        // =========================
         const token = req.headers.authorization?.split(' ')[1];
 
         if (!token) {
             return res.status(401).json({ error: 'No token' });
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.user_id;
+        // =========================
+        // AUTH (FIXED)
+        // =========================
+        const token = req.headers.authorization?.split(' ')[1];
 
-        // get user
+        if (!token) {
+            return res.status(401).json({ error: 'No token' });
+        }
+
+        const { data: { user }, error: authError } =
+            await supabase.auth.getUser(token);
+
+        if (authError || !user) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+
+        const userId = user.id;
+
+        // =========================
+        // CHECK USER TIME
+        // =========================
         const { data: profile, error } = await supabase
             .from('profiles')
             .select('remaining_seconds')
@@ -36,9 +56,32 @@ export default async function handler(req, res) {
             return res.status(403).json({ error: 'No time left' });
         }
 
-        // ✅ RETURN DEPART API KEY SECURELY
+        // =========================
+        // CREATE SESSION
+        // =========================
+        const { data: session, error: sessionError } = await supabase
+            .from('sessions')
+            .insert([
+                {
+                    user_id: userId,
+                    start_time: new Date(),
+                    end_time: null,
+                    seconds_used: 0
+                }
+            ])
+            .select()
+            .single();
+
+        if (sessionError || !session) {
+            return res.status(500).json({ error: 'Failed to create session' });
+        }
+
+        // =========================
+        // RESPONSE
+        // =========================
         return res.status(200).json({
             success: true,
+            session_id: session.id,          // 🔥 CRITICAL
             decartKey: process.env.DECART_API_KEY,
             seconds: profile.remaining_seconds
         });
