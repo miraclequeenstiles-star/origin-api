@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
@@ -7,29 +7,24 @@ const supabase = createClient(
 );
 
 export default async function handler(req, res) {
-    if (req.method !== 'POST')
-        return res.status(405).json({ error: 'Method not allowed' });
-
     try {
         const { token } = req.body;
 
-        if (!token)
-            return res.status(401).json({ error: 'Missing token' });
-
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('profiles')
-            .select('id, email, remaining_seconds')
+            .select('full_name, remaining_seconds')
             .eq('id', decoded.user_id)
             .single();
 
-        if (error || !data)
-            return res.status(404).json({ error: 'User not found' });
+        return res.json({
+            success: true,
+            user: data.full_name,
+            seconds: data.remaining_seconds
+        });
 
-        return res.status(200).json(data);
-
-    } catch (err) {
-        return res.status(401).json({ error: 'Invalid token' });
+    } catch {
+        return res.json({ success: false });
     }
 }
