@@ -1,34 +1,45 @@
-async function register() {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+let isRegister = false;
 
-    const res = await apiPost("/auth", {
-        type: "register",
-        email,
-        password
-    });
+function toggleMode() {
+    isRegister = !isRegister;
 
-    if (res.success) {
-        alert("Registered!");
-    } else {
-        alert(res.error);
-    }
+    document.getElementById("title").innerText =
+        isRegister ? "Register" : "Login";
+
+    document.getElementById("name").style.display =
+        isRegister ? "block" : "none";
 }
 
-async function login() {
+async function submitAuth() {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
+    const name = document.getElementById("name").value;
 
-    const res = await apiPost("/auth", {
-        type: "login",
-        email,
-        password
-    });
+    const payload = isRegister
+        ? {
+            type: "register",
+            email,
+            password,
+            name
+        }
+        : {
+            type: "login",
+            email,
+            password
+        };
 
-    if (res.token) {
+    const res = await apiPost("/auth", payload);
+
+    if (res.error) {
+        alert(res.error);
+        return;
+    }
+
+    if (!isRegister) {
         localStorage.setItem("token", res.token);
         window.location.href = "/profile.html";
     } else {
-        alert(res.error);
+        alert("Registered! Now login.");
+        toggleMode();
     }
 }

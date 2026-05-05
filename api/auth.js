@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
@@ -8,79 +7,50 @@ const supabase = createClient(
 );
 
 export default async function handler(req, res) {
-    if (req.method !== 'POST')
-        return res.status(405).json({ error: 'Method not allowed' });
+    const { type, email, password, name } = req.body;
 
-    try {
-        const { email, password, mode } = req.body;
+    if (!type || !email || !password) {
+        return res.status(400).json({ error: "Missing fields" });
+    }
 
-        if (!email || !password || !mode) {
-            return res.status(400).json({ error: 'Missing fields' });
+    // ================= REGISTER =================
+    if (type === "register") {
+        if (!name) {
+            return res.status(400).json({ error: "Name required" });
         }
 
-        // ================= REGISTER =================
-        if (mode === 'register') {
-            const hash = await bcrypt.hash(password, 10);
+        const { data, error } = await supabase.auth.admin.createUser({
+            email,
+            password
+        });
 
-            const { data, error } = await supabase
-                .from('profiles')
-                .insert([{
-                    email,
-                    password_hash: hash,
-                    remaining_seconds: 600 // default time
-                }])
-                .select()
-                .single();
+        if (error) return res.status(400).json({ error: error.message });
 
-            if (error) {
-                return res.status(400).json({ error: error.message });
-            }
+        // 🔥 create profile row
+        await supabase.from("profiles").insert({
+            id: data.user.id,
+            full_name: name,
+            remaining_seconds: 600 // default time
+        });
 
-            const token = jwt.sign(
-                { user_id: data.id },
-                process.env.JWT_SECRET,
-                { expiresIn: '1h' }
-            );
+        return res.json({ success: true });
+    }
 
-            return res.status(200).json({
-                token,
-                user_id: data.id
-            });
-        }
+    // ================= LOGIN =================
+    if (type === "login") {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
 
-        // ================= LOGIN =================
-        if (mode === 'login') {
-            const { data: user, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('email', email)
-                .single();
+        if (error) return res.status(400).json({ error: error.message });
 
-            if (error || !user) {
-                return res.status(401).json({ error: 'Invalid credentials' });
-            }
+        const token = jwt.sign(
+            { user_id: data.user.id },
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" }
+        );
 
-            const valid = await bcrypt.compare(password, user.password_hash);
-
-            if (!valid) {
-                return res.status(401).json({ error: 'Invalid credentials' });
-            }
-
-            const token = jwt.sign(
-                { user_id: user.id },
-                process.env.JWT_SECRET,
-                { expiresIn: '1h' }
-            );
-
-            return res.status(200).json({
-                token,
-                user_id: user.id
-            });
-        }
-
-        return res.status(400).json({ error: 'Invalid mode' });
-
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
+        return res.json({ token });
     }
 }
