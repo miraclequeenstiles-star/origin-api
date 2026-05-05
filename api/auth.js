@@ -21,7 +21,8 @@ export default async function handler(req, res) {
 
         const { data, error } = await supabase.auth.admin.createUser({
             email,
-            password
+            password,
+            email_confirm: true   // 🔥 THIS IS THE FIX
         });
 
         if (error) return res.status(400).json({ error: error.message });
@@ -30,7 +31,6 @@ export default async function handler(req, res) {
         await supabase.from("profiles").insert({
             id: data.user.id,
             full_name: name,
-            remaining_seconds: 600 // default time
         });
 
         return res.json({ success: true });
