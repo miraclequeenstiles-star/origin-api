@@ -13,7 +13,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Missing fields" });
     }
 
-    // ================= REGISTER =================
+    // ================= REGISTER =========
     if (type === "register") {
         if (!name) {
             return res.status(400).json({ error: "Name required" });
